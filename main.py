@@ -11,7 +11,8 @@
 
 import sys, random, math
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtWidgets import QApplication, QMainWindow, QGraphicsScene, QGraphicsView, QSizePolicy
+from PySide6.QtWidgets import QApplication, QMainWindow, QGraphicsScene, QGraphicsView, QSizePolicy, QGraphicsTextItem, \
+    QGraphicsLineItem
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from PySide6.QtGui import QBrush, QPen, QTransform, QPainter, QSurfaceFormat, QColor
 
@@ -75,7 +76,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle('VIZ Qt for Python Example')
         self.createGraphicView()
         self.generateAndMapData()
-        #self.setMinimumSize(800, 600)
+        self.setMinimumSize(700, 350)
         self.show()
 
     def createGraphicView(self):
@@ -96,23 +97,72 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(self.view)
         self.view.setGeometry(0, 0, 800, 600)
 
-    def generateAndMapData(self):
-        #Generate random data
-        count = 100;
-        x = []
-        y = []
-        r = []
-        c = []
-        for i in range(0, count):
-            x.append(random.random()*600)
-            y.append(random.random()*400)
-            r.append(random.random()*50)
-            c.append(random.randint(0, 2))
 
-        #Map data to graphical elements
-        for i in range(0, count):
-            d = 2*r[i]
-            ellipse = self.scene.addEllipse(x[i], y[i], d, d, self.scene.pen, self.brush[c[i]])
+    # x axis range is ca. (60, 130)
+    # y axis range is ca. (25, 50)
+    # -> ration width:height is ca. 70 : 25
+
+    def mercator_projection(self, longitude, latitude):
+        x = (longitude + 180) * (self.view.width() / 360)
+        y = (180 / math.pi) * math.log(math.tan(math.pi / 4 + latitude * math.pi / 360))
+        y = (self.view.height() / 2) - (self.view.height() * y / (2 * 180))
+        return x, y
+    def generateAndMapData(self):
+        cities = [
+            {'name': 'New York', 'latitude': 40.7128, 'longitude': -74.0060},
+            {'name': 'Los Angeles', 'latitude': 34.0522, 'longitude': -118.2437},
+            {'name': 'Chicago', 'latitude': 41.8781, 'longitude': -87.6298},
+            {'name': 'Houston', 'latitude': 29.7604, 'longitude': -95.3698},
+            {'name': 'Phoenix', 'latitude': 33.4484, 'longitude': -112.0740},
+            {'name': 'Philadelphia', 'latitude': 39.9526, 'longitude': -75.1652},
+            {'name': 'San Antonio', 'latitude': 29.4241, 'longitude': -98.4936},
+            {'name': 'San Diego', 'latitude': 32.7157, 'longitude': -117.1611},
+            {'name': 'Dallas', 'latitude': 32.7767, 'longitude': -96.7970},
+            {'name': 'San Jose', 'latitude': 37.3382, 'longitude': -121.8863},
+            # Add more cities as needed
+        ]
+
+        # Define scaling factor
+        scale_factor = 20  # Adjust this value as needed
+
+
+        # Map data to graphical elements
+        for city in cities:
+            # Convert latitude and longitude to scene coordinates
+            x, y = self.mercator_projection(city['longitude'], city['latitude'])
+
+            # Apply scaling factor
+            x *= scale_factor
+            y *= scale_factor
+
+            # Add city circle
+            d = 10
+            ellipse = self.scene.addEllipse(x - d / 2, y - d / 2, d, d, self.scene.pen, self.brush[0])
+
+            # Add city label
+            text = QGraphicsTextItem(city['name'])
+            text.setPos(x + 10, y - 10)  # Adjust position for label
+            self.scene.addItem(text)
+
+            # Add edges between cities
+            edges = [
+                ('New York', 'Los Angeles'),
+                ('New York', 'Chicago'),
+                # Add more edges as needed
+            ]
+            for edge in edges:
+                city1 = next((city for city in cities if city['name'] == edge[0]), None)
+                city2 = next((city for city in cities if city['name'] == edge[1]), None)
+                if city1 and city2:
+                    x1, y1 = self.mercator_projection(city1['longitude'], city1['latitude'])
+                    x2, y2 = self.mercator_projection(city2['longitude'], city2['latitude'])
+                    x1 *= scale_factor
+                    y1 *= scale_factor
+                    x2 *= scale_factor
+                    y2 *= scale_factor
+                    line = QGraphicsLineItem(x1, y1, x2, y2)
+                    self.scene.addItem(line)
+
 
 def main():
     app = QApplication(sys.argv)
