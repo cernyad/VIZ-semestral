@@ -1,23 +1,31 @@
 import networkx as nx
+import xml.etree.ElementTree as ET
 
 
 class AirlineDataset:
     def __init__(self):
         self.dataset_path = "./data/airlines.graphml"
-        self.G = None
-
-    def load_data(self):
-        self.G = nx.read_graphml(self.dataset_path)
 
     def get_nodes(self) -> list:
-        return [node for node in self.G.nodes(data=True)]
+        return [node for node in nx.read_graphml(self.dataset_path).nodes(data=True)]
 
     def get_edges(self) -> list:
-        return [edge for edge in self.G.edges(data=True)]
+        with open(self.dataset_path, 'r') as file:
+            graphml_data = file.read()
+
+        root = ET.fromstring(graphml_data)
+        namespace = {'graphml': 'http://graphml.graphdrawing.org/xmlns'}
+        edges = []
+
+        for edge in root.findall('.//graphml:edge', namespace):
+            source = edge.attrib['source']
+            target = edge.attrib['target']
+            edges.append((source, target))
+
+        return edges
 
 
 if __name__ == "__main__":
     airline_dataset = AirlineDataset()
-    airline_dataset.load_data()
-    print(airline_dataset.get_nodes())
-    print(airline_dataset.get_edges())
+    print(len(airline_dataset.get_nodes()))
+    #print(airline_dataset.get_edges())
