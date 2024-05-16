@@ -15,6 +15,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QGraphicsScene, QGraphi
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from PySide6.QtGui import QBrush, QPen, QTransform, QPainter, QSurfaceFormat, QColor
 
+
 class VisGraphicsScene(QGraphicsScene):
     def __init__(self):
         super(VisGraphicsScene, self).__init__()
