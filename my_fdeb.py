@@ -121,8 +121,8 @@ class MyFdeb:
 
         return compatibility_matrix
 
-    def my_fdeb(self, airline_dataset: AirlineDataset):
-        edges = airline_dataset.transform_edges()
+    def my_fdeb(self, edges):
+        # edges = airline_dataset.transform_edges()
         initial_vecs = edges[:, 0] - edges[:, -1]
         initial_edge_lengths = np.linalg.norm(initial_vecs, axis=-1, keepdims=True)
         edge_compatibilities = self.get_edge_compatibility(edges)

@@ -8,6 +8,8 @@
 # FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS 
 # OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING 
 # OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+import numpy as np
+
 from airline_dataset import AirlineDataset
 import sys, random, math
 from PySide6.QtCore import Qt, QSize
@@ -16,6 +18,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QGraphicsScene, QGraphi
     QGraphicsLineItem, QWidget, QVBoxLayout, QListWidget, QListWidgetItem, QHBoxLayout, QGraphicsEllipseItem
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from PySide6.QtGui import QBrush, QPen, QTransform, QPainter, QSurfaceFormat, QColor
+from my_fdeb import MyFdeb
 
 
 dataset = AirlineDataset("./data/airlines.graphml")
@@ -25,12 +28,14 @@ class VisGraphicsScene(QGraphicsScene):
         self.city_items = {}
         self.selection = None
         self.wasDragg = False
-        self.pen = QPen(Qt.black)
-        color = QColor(0, 255, 0, 127)  # Red color with 50% opacity
+
+        color = QColor(255, 255, 0, 200)  # Red color with 50% opacity
+        self.pen = QPen(color)
         self.brush = QBrush(color)
 
-        self.selected_pen = QPen(Qt.red)
-        self.selected_brush = QBrush(Qt.red)
+        selected_color = QColor(0, 255, 0, 255)
+        self.selected_pen = QPen(selected_color)
+        self.selected_brush = QBrush(selected_color)
 
     def mouseReleaseEvent(self, event):
         if (self.wasDragg):
@@ -114,7 +119,7 @@ class MainWindow(QMainWindow):
         self.view.setBackgroundBrush(QColor(255, 255, 255))
         self.view.setGeometry(0, 0, 1000, 1000)
         self.view.scale(0.4, 0.4)
-        self.view.setBackgroundBrush(QBrush(Qt.white))
+        self.view.setBackgroundBrush(QBrush(QColor(0, 0, 128, 255)))
         layout.addWidget(self.view)
 
 
@@ -172,6 +177,24 @@ class MainWindow(QMainWindow):
         y = (self.view.height() / 2) - (self.view.height() * y / (2 * 180))
         return x, y
 
+    def get_edge_coords(self, airports):
+        edges = dataset.edges
+
+        coords = np.zeros((len(edges), 2, 2))
+        for i, e in enumerate(edges):
+            x1, y1 = airports[e[0]]["x"], airports[e[0]]["y"]
+            x2, y2 = airports[e[1]]["x"], airports[e[1]]["y"]
+
+            print(f"edge from {airports[e[0]]["name"]} to {airports[e[1]]["name"]}")
+            print(f"x1: {x1} y1: {y1} x2: {x2} y2: {y2}")
+
+            coords[i, 0, 0] = x1
+            coords[i, 0, 1] = y1
+            coords[i, 1, 0] = x2
+            coords[i, 1, 1] = y2
+
+
+        return coords
     def generateAndMapData(self):
         cities = dataset.nodes
 
@@ -196,6 +219,9 @@ class MainWindow(QMainWindow):
             x *= scale_factor
             y *= scale_factor
 
+            city["x"] = x
+            city["y"] = y
+
             # Add city circle
             d = self.get_airport_size(city)
             ellipse = self.scene.addEllipse(x - d / 2, y - d / 2, d, d, self.scene.pen, self.scene.brush)
@@ -207,6 +233,42 @@ class MainWindow(QMainWindow):
             text.setDefaultTextColor(Qt.black)
             text.setPos(x + 10, y - 10)  # Adjust position for label
             self.scene.addItem(text)
+
+        # sort back to original order
+        cities.sort(key=lambda x: x['index'])
+        edge_coords = self.get_edge_coords(cities)
+
+        overflow_const = 100 # 10 worked for 60 its, not for 100
+        # PERFORM EDGE BUNDLING
+        edge_coords /= overflow_const  # prevent overflow
+
+        # mf = MyFdeb()
+        # edges_fdeb = mf.my_fdeb(edge_coords)
+        # print(edges_fdeb.shape)
+        # with open('edges_fdeb.npy', 'wb') as f:
+        #     np.save(f, edges_fdeb)
+
+        with open('edges_fdeb_best.npy', 'rb') as f:
+            edges_fdeb = np.load(f)
+
+        edges_fdeb *= overflow_const
+        edge_coords *= overflow_const
+        print(edge_coords)
+
+        # edges_fdeb = edge_coords # switch bundled/not bundled
+
+        for i in range(edges_fdeb.shape[0]):
+            for j in range(edges_fdeb.shape[1]-1):
+                x1, y1 = edges_fdeb[i, j, :]
+                x2, y2 = edges_fdeb[i, j+1, :]
+
+                line = QGraphicsLineItem(x1, y1, x2, y2)
+                line.setZValue(-50)  # Set a low Z-value for edges
+                line.setPen(QPen(QColor(255, 0, 0, 60)))
+                self.scene.addItem(line)
+
+
+
 
 
 
