@@ -89,7 +89,7 @@ class MainWindow(QMainWindow):
         self.setWindowTitle('VIZ Qt for Python Example')
         self.createWidgets()
         self.generateAndMapData()
-        self.setMinimumSize(1000, 600)
+        self.setMinimumSize(1600, 900)
         self.show()
 
     def createWidgets(self):
@@ -113,12 +113,15 @@ class MainWindow(QMainWindow):
         self.view.setViewport(gl)
         self.view.setBackgroundBrush(QColor(255, 255, 255))
         self.view.setGeometry(0, 0, 1000, 1000)
+        self.view.scale(0.4, 0.4)
+        self.view.setBackgroundBrush(QBrush(Qt.white))
         layout.addWidget(self.view)
 
 
         # Create list widget for cities
         self.cityListWidget = QListWidget()
         self.cityListWidget.itemClicked.connect(self.onCityListItemClicked)  # Connect signal to slot
+        self.cityListWidget.itemSelectionChanged.connect(self.changeItemColor)
         layout.addWidget(self.cityListWidget)
 
         layout.setStretch(0, 5)  # Set stretch factor for visualization view
@@ -134,6 +137,21 @@ class MainWindow(QMainWindow):
             city_item.setPen(self.scene.selected_pen)  # Highlight selected city
             city_item.setBrush(self.scene.selected_brush)  # Highlight selected city
             self.scene.selection = city_item
+
+    def changeItemColor(self):
+
+        for i in range(self.cityListWidget.count()):
+            item = self.cityListWidget.item(i)
+            item.setData(Qt.BackgroundRole, QBrush(QColor("white")))
+            item.setData(Qt.ForegroundRole, QBrush(QColor("black")))
+
+            # Change the color of selected items
+        selected_items = self.cityListWidget.selectedItems()
+        for item in selected_items:
+            item.setData(Qt.BackgroundRole, QBrush(QColor("blue")))  # Change background color to blue
+            item.setData(Qt.ForegroundRole, QBrush(QColor("white")))  # Change text color to white
+
+
     def get_airport_size(self, airport):
         MAX_SIZE = 100
         size = 10
@@ -142,11 +160,11 @@ class MainWindow(QMainWindow):
             if idx == e[0] or idx == e[1]:
                 size *= 1.01
 
-        return min(size, MAX_SIZE)
+            return min(size, MAX_SIZE)
 
-    # x axis range is ca. (60, 130)
-    # y axis range is ca. (25, 50)
-    # -> ration width:height is ca. 70 : 25
+        # x axis range is ca. (60, 130)
+        # y axis range is ca. (25, 50)
+        # -> ration width:height is ca. 70 : 25
 
     def mercator_projection(self, longitude, latitude):
         x = (longitude + 180) * (self.view.width() / 360)
@@ -186,6 +204,7 @@ class MainWindow(QMainWindow):
 
             # Add city label
             text = QGraphicsTextItem(city['name'])
+            text.setDefaultTextColor(Qt.black)
             text.setPos(x + 10, y - 10)  # Adjust position for label
             self.scene.addItem(text)
 
