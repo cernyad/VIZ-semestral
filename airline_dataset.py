@@ -1,4 +1,6 @@
 import networkx as nx
+import numpy as np
+
 import xml.etree.ElementTree as ET
 import re
 
@@ -59,6 +61,17 @@ class AirlineDataset:
             edges.append((source, target))
 
         return edges
+
+    def transform_edges(self) -> np.ndarray:
+        transformed_edges = np.zeros((self.n_edges, 2, 2))
+
+        for idx, (from_edge, to_edge) in enumerate(self.edges):
+            from_coords = np.array([self.nodes[from_edge][1]["x"], self.nodes[from_edge][1]["y"]])
+            to_coords = np.array([self.nodes[to_edge][1]["x"], self.nodes[to_edge][1]["y"]])
+            transformed_edges[idx, 0, :] = from_coords
+            transformed_edges[idx, 1, :] = to_coords
+
+        return transformed_edges
 
 if __name__ == '__main__':
     dataset = AirlineDataset("data/airlines.graphml")
