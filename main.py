@@ -13,7 +13,7 @@ import sys, random, math
 from PySide6.QtCore import Qt, QSize
 from PySide6.QtSvgWidgets import QGraphicsSvgItem
 from PySide6.QtWidgets import QApplication, QMainWindow, QGraphicsScene, QGraphicsView, QSizePolicy, QGraphicsTextItem, \
-    QGraphicsLineItem
+    QGraphicsLineItem, QWidget, QVBoxLayout, QListWidget, QListWidgetItem, QHBoxLayout, QGraphicsEllipseItem
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from PySide6.QtGui import QBrush, QPen, QTransform, QPainter, QSurfaceFormat, QColor
 
@@ -22,20 +22,28 @@ dataset = AirlineDataset("./data/airlines.graphml")
 class VisGraphicsScene(QGraphicsScene):
     def __init__(self):
         super(VisGraphicsScene, self).__init__()
+        self.city_items = {}
         self.selection = None
         self.wasDragg = False
         self.pen = QPen(Qt.black)
-        self.selected = QPen(Qt.red)
+        self.brush = QBrush(Qt.yellow)
+        self.selected_pen = QPen(Qt.red)
+        self.selected_brush = QBrush(Qt.red)
 
     def mouseReleaseEvent(self, event):
         if (self.wasDragg):
             return
         if (self.selection):
             self.selection.setPen(self.pen)
+            self.selection.setBrush(self.brush)
         item = self.itemAt(event.scenePos(), QTransform())
         if (item):
-            item.setPen(self.selected)
+            item.setPen(self.selected_pen)
+            item.setBrush(self.selected_brush)
             self.selection = item
+
+            if isinstance(item, QGraphicsEllipseItem): # city
+                print(f"selected: {item.data(0)}")
 
 
 class VisGraphicsView(QGraphicsView):
@@ -77,31 +85,62 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
         self.setWindowTitle('VIZ Qt for Python Example')
-        self.createGraphicView()
+        self.createWidgets()
         self.generateAndMapData()
-        self.setMinimumSize(700, 350)
+        self.setMinimumSize(1000, 600)
         self.show()
 
-    def createGraphicView(self):
+    def createWidgets(self):
+        # Create main widget to hold layout
+        mainWidget = QWidget()
+        self.setCentralWidget(mainWidget)
+        layout = QHBoxLayout(mainWidget)
+
+        # Create visualization view
         self.scene = VisGraphicsScene()
         self.brush = [QBrush(Qt.yellow), QBrush(Qt.green), QBrush(Qt.blue)]
 
         format = QSurfaceFormat();
         format.setSamples(4);
 
-        gl = QOpenGLWidget();
-        gl.setFormat(format);
+        gl = QOpenGLWidget()
+        gl.setFormat(format)
         gl.setAutoFillBackground(True)
 
         self.view = VisGraphicsView(self.scene, self)
-        self.view.setViewport(gl);
+        self.view.setViewport(gl)
         self.view.setBackgroundBrush(QColor(255, 255, 255))
+        self.view.setGeometry(0, 0, 1000, 1000)
+        layout.addWidget(self.view)
 
-        self.setCentralWidget(self.view)
-        self.view.setGeometry(0, 0, 800, 600)
 
-    def get_airport_size(self):
-        return 10
+        # Create list widget for cities
+        self.cityListWidget = QListWidget()
+        self.cityListWidget.itemClicked.connect(self.onCityListItemClicked)  # Connect signal to slot
+        layout.addWidget(self.cityListWidget)
+
+        layout.setStretch(0, 5)  # Set stretch factor for visualization view
+        layout.setStretch(1, 1)  # Set stretch factor for list widget
+
+    def onCityListItemClicked(self, item):
+        city_name = item.text()
+        if self.scene.selection:
+            self.scene.selection.setPen(self.scene.pen)  # Reset previous selection
+            self.scene.selection.setBrush(self.scene.brush)  # Reset previous selection
+        city_item = self.scene.city_items.get(city_name)
+        if city_item:
+            city_item.setPen(self.scene.selected_pen)  # Highlight selected city
+            city_item.setBrush(self.scene.selected_brush)  # Highlight selected city
+            self.scene.selection = city_item
+    def get_airport_size(self, airport):
+        MAX_SIZE = 100
+        size = 10
+        for e in dataset.edges:
+            idx = airport["index"]
+            if idx == e[0] or idx == e[1]:
+                size *= 1.01
+
+        return min(size, MAX_SIZE)
 
     # x axis range is ca. (60, 130)
     # y axis range is ca. (25, 50)
@@ -114,19 +153,16 @@ class MainWindow(QMainWindow):
         return x, y
 
     def generateAndMapData(self):
-        cities = [ # TODO change to dataset.nodes
-            {'name': 'New York', 'latitude': 40.7128, 'longitude': -74.0060},
-            {'name': 'Los Angeles', 'latitude': 34.0522, 'longitude': -118.2437},
-            {'name': 'Chicago', 'latitude': 41.8781, 'longitude': -87.6298},
-            {'name': 'Houston', 'latitude': 29.7604, 'longitude': -95.3698},
-            {'name': 'Phoenix', 'latitude': 33.4484, 'longitude': -112.0740},
-            {'name': 'Philadelphia', 'latitude': 39.9526, 'longitude': -75.1652},
-            {'name': 'San Antonio', 'latitude': 29.4241, 'longitude': -98.4936},
-            {'name': 'San Diego', 'latitude': 32.7157, 'longitude': -117.1611},
-            {'name': 'Dallas', 'latitude': 32.7767, 'longitude': -96.7970},
-            {'name': 'San Jose', 'latitude': 37.3382, 'longitude': -121.8863},
-            # Add more cities as needed
-        ]
+        cities = dataset.nodes
+
+        cities.sort(key=lambda x: x['name'])
+
+        # Populate list widget with city names
+        for city in cities:
+            item = QListWidgetItem(city['name'])
+            self.cityListWidget.addItem(item)
+
+
 
         # Define scaling factor
         scale_factor = 20  # Adjust this value as needed
@@ -141,32 +177,17 @@ class MainWindow(QMainWindow):
             y *= scale_factor
 
             # Add city circle
-            d = self.get_airport_size()
+            d = self.get_airport_size(city)
             ellipse = self.scene.addEllipse(x - d / 2, y - d / 2, d, d, self.scene.pen, self.brush[0])
+            ellipse.setData(0, city['name'])  # Store the city name as custom data
+            self.scene.city_items[city['name']] = ellipse  # Store the ellipse item
 
             # Add city label
             text = QGraphicsTextItem(city['name'])
             text.setPos(x + 10, y - 10)  # Adjust position for label
             self.scene.addItem(text)
 
-            # Add edges between cities
-            edges = [
-                ('New York', 'Los Angeles'),
-                ('New York', 'Chicago'),
-                # Add more edges as needed
-            ]
-            for edge in edges:
-                city1 = next((city for city in cities if city['name'] == edge[0]), None)
-                city2 = next((city for city in cities if city['name'] == edge[1]), None)
-                if city1 and city2:
-                    x1, y1 = self.mercator_projection(city1['longitude'], city1['latitude'])
-                    x2, y2 = self.mercator_projection(city2['longitude'], city2['latitude'])
-                    x1 *= scale_factor
-                    y1 *= scale_factor
-                    x2 *= scale_factor
-                    y2 *= scale_factor
-                    line = QGraphicsLineItem(x1, y1, x2, y2)
-                    self.scene.addItem(line)
+
 
 
 def main():

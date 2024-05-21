@@ -54,8 +54,8 @@ class AirlineDataset:
         edges = []
 
         for edge in root.findall('.//graphml:edge', namespace):
-            source = edge.attrib['source']
-            target = edge.attrib['target']
+            source = int(edge.attrib['source'])
+            target = int(edge.attrib['target'])
             edges.append((source, target))
 
         return edges
