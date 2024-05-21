@@ -2,18 +2,50 @@ import networkx as nx
 import numpy as np
 
 import xml.etree.ElementTree as ET
+import re
 
 
 class AirlineDataset:
-    def __init__(self):
-        self.dataset_path = "./data/airlines.graphml"
+    def __init__(self, path):
+        self.dataset_path = path
         self.edges = self._get_edges()
         self.n_edges = len(self.edges)
         self.nodes = self._get_nodes()
         self.n_nodes = len(self.nodes)
 
     def _get_nodes(self) -> list:
-        return [node for node in nx.read_graphml(self.dataset_path).nodes(data=True)]
+        def convert_format(index, node_data):
+            tooltip = node_data['tooltip']
+
+            # Extracting the name, longitude, and latitude using regex
+            name_match = re.search(r'([A-Z]+)\(lngx', tooltip)
+            coord_match = re.search(r'lngx=([-+]?\d*\.\d+|\d+),laty=([-+]?\d*\.\d+|\d+)', tooltip)
+
+            if name_match and coord_match:
+                name = name_match.group(1)
+                longitude = float(coord_match.group(1))
+                latitude = float(coord_match.group(2))
+            else:
+                raise ValueError("Invalid format for tooltip")
+
+            return {
+                'index' : index,
+                'name': name,
+                'latitude': latitude,
+                'longitude': longitude
+            }
+
+        graph = nx.read_graphml(self.dataset_path)
+        nodes = []
+
+        for node, data in graph.nodes(data=True):
+            if 'tooltip' in data:
+                formatted_node = convert_format(int(node), data)
+                nodes.append(formatted_node)
+            else:
+                raise ValueError(f"Node {node} does not contain 'tooltip' attribute")
+
+        return nodes
 
     def _get_edges(self) -> list:
         with open(self.dataset_path, 'r') as file:
@@ -24,9 +56,9 @@ class AirlineDataset:
         edges = []
 
         for edge in root.findall('.//graphml:edge', namespace):
-            source = edge.attrib['source']
-            target = edge.attrib['target']
-            edges.append((int(source), int(target)))
+            source = int(edge.attrib['source'])
+            target = int(edge.attrib['target'])
+            edges.append((source, target))
 
         return edges
 
@@ -40,3 +72,8 @@ class AirlineDataset:
             transformed_edges[idx, 1, :] = to_coords
 
         return transformed_edges
+
+if __name__ == '__main__':
+    dataset = AirlineDataset("data/airlines.graphml")
+    print(dataset.nodes[:10])
+    print(dataset.edges[:10])
