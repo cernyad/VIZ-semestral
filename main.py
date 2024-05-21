@@ -26,7 +26,9 @@ class VisGraphicsScene(QGraphicsScene):
         self.selection = None
         self.wasDragg = False
         self.pen = QPen(Qt.black)
-        self.brush = QBrush(Qt.yellow)
+        color = QColor(0, 255, 0, 127)  # Red color with 50% opacity
+        self.brush = QBrush(color)
+
         self.selected_pen = QPen(Qt.red)
         self.selected_brush = QBrush(Qt.red)
 
@@ -178,7 +180,7 @@ class MainWindow(QMainWindow):
 
             # Add city circle
             d = self.get_airport_size(city)
-            ellipse = self.scene.addEllipse(x - d / 2, y - d / 2, d, d, self.scene.pen, self.brush[0])
+            ellipse = self.scene.addEllipse(x - d / 2, y - d / 2, d, d, self.scene.pen, self.scene.brush)
             ellipse.setData(0, city['name'])  # Store the city name as custom data
             self.scene.city_items[city['name']] = ellipse  # Store the ellipse item
 
