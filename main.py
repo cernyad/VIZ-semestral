@@ -160,7 +160,7 @@ class MainWindow(QMainWindow):
             if idx == e[0] or idx == e[1]:
                 size *= 1.01
 
-            return min(size, MAX_SIZE)
+        return min(size, MAX_SIZE)
 
         # x axis range is ca. (60, 130)
         # y axis range is ca. (25, 50)
