@@ -5,11 +5,15 @@ import xml.etree.ElementTree as ET
 class AirlineDataset:
     def __init__(self):
         self.dataset_path = "./data/airlines.graphml"
+        self.edges = self._get_edges()
+        self.n_edges = len(self.edges)
+        self.nodes = self._get_nodes()
+        self.n_nodes = len(self.nodes)
 
-    def get_nodes(self) -> list:
+    def _get_nodes(self) -> list:
         return [node for node in nx.read_graphml(self.dataset_path).nodes(data=True)]
 
-    def get_edges(self) -> list:
+    def _get_edges(self) -> list:
         with open(self.dataset_path, 'r') as file:
             graphml_data = file.read()
 
@@ -23,9 +27,3 @@ class AirlineDataset:
             edges.append((source, target))
 
         return edges
-
-
-if __name__ == "__main__":
-    airline_dataset = AirlineDataset()
-    print(len(airline_dataset.get_nodes()))
-    #print(airline_dataset.get_edges())
