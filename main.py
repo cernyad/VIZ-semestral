@@ -8,15 +8,17 @@
 # FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS 
 # OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING 
 # OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
-
+from airline_dataset import AirlineDataset
 import sys, random, math
 from PySide6.QtCore import Qt, QSize
+from PySide6.QtSvgWidgets import QGraphicsSvgItem
 from PySide6.QtWidgets import QApplication, QMainWindow, QGraphicsScene, QGraphicsView, QSizePolicy, QGraphicsTextItem, \
     QGraphicsLineItem
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from PySide6.QtGui import QBrush, QPen, QTransform, QPainter, QSurfaceFormat, QColor
 
 
+dataset = AirlineDataset("./data/airlines.graphml")
 class VisGraphicsScene(QGraphicsScene):
     def __init__(self):
         super(VisGraphicsScene, self).__init__()
@@ -25,13 +27,13 @@ class VisGraphicsScene(QGraphicsScene):
         self.pen = QPen(Qt.black)
         self.selected = QPen(Qt.red)
 
-    def mouseReleaseEvent(self, event): 
-        if(self.wasDragg):
+    def mouseReleaseEvent(self, event):
+        if (self.wasDragg):
             return
-        if(self.selection):
+        if (self.selection):
             self.selection.setPen(self.pen)
         item = self.itemAt(event.scenePos(), QTransform())
-        if(item):
+        if (item):
             item.setPen(self.selected)
             self.selection = item
 
@@ -51,9 +53,9 @@ class VisGraphicsView(QGraphicsView):
         self.setResizeAnchor(QGraphicsView.AnchorViewCenter)
 
     def wheelEvent(self, event):
-        zoom = 1 + event.angleDelta().y()*0.001;
+        zoom = 1 + event.angleDelta().y() * 0.001;
         self.scale(zoom, zoom)
-        
+
     def mousePressEvent(self, event):
         self.startX = event.pos().x()
         self.startY = event.pos().y()
@@ -65,10 +67,11 @@ class VisGraphicsView(QGraphicsView):
         endY = event.pos().y()
         deltaX = endX - self.startX
         deltaY = endY - self.startY
-        distance = math.sqrt(deltaX*deltaX + deltaY*deltaY)
-        if(distance > 5):
+        distance = math.sqrt(deltaX * deltaX + deltaY * deltaY)
+        if (distance > 5):
             self.myScene.wasDragg = True
         super().mouseReleaseEvent(event)
+
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -82,21 +85,23 @@ class MainWindow(QMainWindow):
     def createGraphicView(self):
         self.scene = VisGraphicsScene()
         self.brush = [QBrush(Qt.yellow), QBrush(Qt.green), QBrush(Qt.blue)]
-        
+
         format = QSurfaceFormat();
         format.setSamples(4);
-        
+
         gl = QOpenGLWidget();
         gl.setFormat(format);
         gl.setAutoFillBackground(True)
-        
+
         self.view = VisGraphicsView(self.scene, self)
         self.view.setViewport(gl);
         self.view.setBackgroundBrush(QColor(255, 255, 255))
-        
+
         self.setCentralWidget(self.view)
         self.view.setGeometry(0, 0, 800, 600)
 
+    def get_airport_size(self):
+        return 10
 
     # x axis range is ca. (60, 130)
     # y axis range is ca. (25, 50)
@@ -107,8 +112,9 @@ class MainWindow(QMainWindow):
         y = (180 / math.pi) * math.log(math.tan(math.pi / 4 + latitude * math.pi / 360))
         y = (self.view.height() / 2) - (self.view.height() * y / (2 * 180))
         return x, y
+
     def generateAndMapData(self):
-        cities = [
+        cities = [ # TODO change to dataset.nodes
             {'name': 'New York', 'latitude': 40.7128, 'longitude': -74.0060},
             {'name': 'Los Angeles', 'latitude': 34.0522, 'longitude': -118.2437},
             {'name': 'Chicago', 'latitude': 41.8781, 'longitude': -87.6298},
@@ -125,7 +131,6 @@ class MainWindow(QMainWindow):
         # Define scaling factor
         scale_factor = 20  # Adjust this value as needed
 
-
         # Map data to graphical elements
         for city in cities:
             # Convert latitude and longitude to scene coordinates
@@ -136,7 +141,7 @@ class MainWindow(QMainWindow):
             y *= scale_factor
 
             # Add city circle
-            d = 10
+            d = self.get_airport_size()
             ellipse = self.scene.addEllipse(x - d / 2, y - d / 2, d, d, self.scene.pen, self.brush[0])
 
             # Add city label
@@ -168,6 +173,7 @@ def main():
     app = QApplication(sys.argv)
     ex = MainWindow()
     sys.exit(app.exec_())
+
 
 if __name__ == "__main__":
     main()

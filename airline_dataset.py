@@ -12,7 +12,7 @@ class AirlineDataset:
         self.n_nodes = len(self.nodes)
 
     def _get_nodes(self) -> list:
-        def convert_format(node_data):
+        def convert_format(index, node_data):
             tooltip = node_data['tooltip']
 
             # Extracting the name, longitude, and latitude using regex
@@ -27,6 +27,7 @@ class AirlineDataset:
                 raise ValueError("Invalid format for tooltip")
 
             return {
+                'index' : index,
                 'name': name,
                 'latitude': latitude,
                 'longitude': longitude
@@ -37,7 +38,7 @@ class AirlineDataset:
 
         for node, data in graph.nodes(data=True):
             if 'tooltip' in data:
-                formatted_node = convert_format(data)
+                formatted_node = convert_format(int(node), data)
                 nodes.append(formatted_node)
             else:
                 raise ValueError(f"Node {node} does not contain 'tooltip' attribute")
