@@ -13,15 +13,15 @@ import numpy as np
 from airline_dataset import AirlineDataset
 import sys, random, math
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtSvgWidgets import QGraphicsSvgItem
 from PySide6.QtWidgets import QApplication, QMainWindow, QGraphicsScene, QGraphicsView, QSizePolicy, QGraphicsTextItem, \
     QGraphicsLineItem, QWidget, QVBoxLayout, QListWidget, QListWidgetItem, QHBoxLayout, QGraphicsEllipseItem
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from PySide6.QtGui import QBrush, QPen, QTransform, QPainter, QSurfaceFormat, QColor
 from my_fdeb import MyFdeb
 
-
 dataset = AirlineDataset("./data/airlines.graphml")
+
+
 class VisGraphicsScene(QGraphicsScene):
     def __init__(self):
         super(VisGraphicsScene, self).__init__()
@@ -115,9 +115,6 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1600, 900)
         self.show()
 
-
-
-
     def createWidgets(self):
         # Create main widget to hold layout
         mainWidget = QWidget()
@@ -142,7 +139,6 @@ class MainWindow(QMainWindow):
         self.view.scale(0.4, 0.4)
         self.view.setBackgroundBrush(QBrush(QColor(0, 0, 128, 255)))
         layout.addWidget(self.view)
-
 
         self.cityListWidget = QListWidget()
         self.cityListWidget.itemClicked.connect(self.onCityListItemClicked)  # Connect signal to slot
@@ -178,7 +174,6 @@ class MainWindow(QMainWindow):
                 for line in self.edge_lines[idx]:
                     line.setPen(self.scene.selected_pen)
 
-
     def get_airport_size(self, airport):
         MAX_SIZE = 100
         size = 10
@@ -188,10 +183,6 @@ class MainWindow(QMainWindow):
                 size *= 1.01
 
         return min(size, MAX_SIZE)
-
-        # x axis range is ca. (60, 130)
-        # y axis range is ca. (25, 50)
-        # -> ration width:height is ca. 70 : 25
 
     def mercator_projection(self, longitude, latitude):
         x = (longitude + 180) * (self.view.width() / 360)
@@ -219,8 +210,8 @@ class MainWindow(QMainWindow):
             self.airports[e[0]]["edges"].append(i)
             self.airports[e[1]]["edges"].append(i)
 
-
         return coords
+
     def generateAndMapData(self):
         self.airports.sort(key=lambda x: x['name'])
 
@@ -263,7 +254,7 @@ class MainWindow(QMainWindow):
         self.airports.sort(key=lambda x: x['index'])
         edge_coords = self.get_edge_coords()
 
-        overflow_const = 100 # 10 worked for 60 its, not for 100
+        overflow_const = 100  # 10 worked for 60 its, not for 100
         # PERFORM EDGE BUNDLING
         edge_coords /= overflow_const  # prevent overflow
 
@@ -283,9 +274,9 @@ class MainWindow(QMainWindow):
 
         for i in range(edges_fdeb.shape[0]):
             self.edge_lines[i] = []
-            for j in range(edges_fdeb.shape[1]-1):
+            for j in range(edges_fdeb.shape[1] - 1):
                 x1, y1 = edges_fdeb[i, j, :]
-                x2, y2 = edges_fdeb[i, j+1, :]
+                x2, y2 = edges_fdeb[i, j + 1, :]
 
                 line = QGraphicsLineItem(x1, y1, x2, y2)
                 line.setZValue(-50)  # Set a low Z-value for edges
@@ -296,6 +287,7 @@ class MainWindow(QMainWindow):
                 self.scene.addItem(line)
 
         self.scene.edge_lines = self.edge_lines
+
 
 def main():
     app = QApplication(sys.argv)
