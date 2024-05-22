@@ -185,7 +185,7 @@ class MainWindow(QMainWindow):
             x1, y1 = airports[e[0]]["x"], airports[e[0]]["y"]
             x2, y2 = airports[e[1]]["x"], airports[e[1]]["y"]
 
-            print(f"edge from {airports[e[0]]["name"]} to {airports[e[1]]["name"]}")
+            print(f"edge from {airports[e[0]]['name']} to {airports[e[1]]['name']}")
             print(f"x1: {x1} y1: {y1} x2: {x2} y2: {y2}")
 
             coords[i, 0, 0] = x1

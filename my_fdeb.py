@@ -1,6 +1,6 @@
 import numpy as np
+import math
 
-from airline_dataset import AirlineDataset
 from tqdm import tqdm
 
 
@@ -103,15 +103,6 @@ class MyFdeb:
 
         Im = np.array(Im)
 
-        """
-        t = np.sum(ap * vec[:, None, None, :], axis=-1) / (
-                np.sum(vec ** 2, axis=-1)[:, None, None] + 1e-8
-        )
-        I = edges[:, None, 0, None] + t[..., None] * vec[:, None, None, :]
-        i0, i1 = I[..., 0, :], I[..., 1, :]
-        Im = (i0 + i1) / 2
-        """
-
         denom = np.sqrt(np.sum((i0 - i1) ** 2, axis=-1))
         num = 2 * np.linalg.norm(midpoint[:, None, ...] - Im, axis=-1)
         compat_visibility = np.maximum(0, 1 - num / (denom + 1e-8))
@@ -122,17 +113,15 @@ class MyFdeb:
         return compatibility_matrix
 
     def my_fdeb(self, edges):
-        # edges = airline_dataset.transform_edges()
         initial_vecs = edges[:, 0] - edges[:, -1]
         initial_edge_lengths = np.linalg.norm(initial_vecs, axis=-1, keepdims=True)
         edge_compatibilities = self.get_edge_compatibility(edges)
-        #edge_compatibilities = (edge_compatibilities > self.compat_threshold).astype(np.float32)
         segments = self.initial_segpoints
         lr_val = self.lr
         n_iter_val = self.n_iter
 
-        for cycle in tqdm(range(self.n_cycles)):
-            edges = self.subdivide_edges(edges, segments + 2)  # Including endpoints
+        for _ in tqdm(range(self.n_cycles)):
+            edges = self.subdivide_edges(edges, segments + 2)
             segments = int(np.ceil(segments * self.segpoint_increase))
 
             kp_values = self.K / (initial_edge_lengths * segments + 1e-8)
@@ -148,60 +137,18 @@ class MyFdeb:
         return edges
 
     def subdivide_edges(self, edges: np.ndarray, num_points: int) -> np.ndarray:
-        # Calculate vectors and their lengths
-        """
-        vectors = edges[:, 1:] - edges[:, :-1]
-        lengths = np.linalg.norm(vectors, axis=-1)
-
-        # Cumulative lengths
-        cum_lengths = np.cumsum(lengths, axis=1)
-        cum_lengths = np.hstack([np.zeros((cum_lengths.shape[0], 1)), cum_lengths])
-
-        # Total lengths of each edge
-        total_lengths = cum_lengths[:, -1]
-
-        # Interpolated lengths for new points
-        t = np.linspace(0, 1, num=num_points, endpoint=True)
-        interpolated_lengths = t * total_lengths[:, None]
-
-        # Determine segments for new points
-        segment_indices = np.argmax(interpolated_lengths[:, :, None] < cum_lengths[:, None, :], axis=2)
-
-        # Calculate interpolation factors
-        previous_lengths = np.take_along_axis(cum_lengths, segment_indices - 1, axis=1)
-        segment_lengths = np.take_along_axis(lengths, segment_indices - 1, axis=1)
-        interpolation_factors = (interpolated_lengths - previous_lengths) / (segment_lengths + 1e-8)
-
-        # Interpolate new points
-        n_edges = edges.shape[0]
-        new_points = np.zeros((n_edges, num_points, 2))
-        for i in range(n_edges):
-            for j in range(num_points):
-                idx = segment_indices[i, j]
-                start_point = edges[i, idx - 1]
-                end_point = edges[i, idx]
-                factor = interpolation_factors[i, j]
-                new_points[i, j] = (1 - factor) * start_point + factor * end_point
-
-        return new_points
-        """
-        segment_vecs = edges[:, 1:] - edges[:, :-1]
-        segment_lens = np.linalg.norm(segment_vecs, axis=-1)
-        cum_segment_lens = np.cumsum(segment_lens, axis=1)
-        cum_segment_lens = np.hstack(
-            [np.zeros((cum_segment_lens.shape[0], 1)), cum_segment_lens]
-        )
+        segment_vecs = [[edges[i][j + 1] - edges[i][j] for j in range(len(edges[i]) - 1)] for i in range(len(edges))]
+        segment_lens = [[math.sqrt(sum((x_k ** 2 for x_k in segment_vecs[i][j]))) for j in range(len(segment_vecs[i]))]
+                        for i in range(len(segment_vecs))]
+        cum_segment_lens = np.array([[0] + [sum(segment_lens[i][:j + 1]) for j in range(len(segment_lens[i]))] for i in
+                            range(len(segment_lens))])
 
         total_lens = cum_segment_lens[:, -1]
-
-        # At which lengths do we want to generate new points
         t = np.linspace(0, 1, num=num_points, endpoint=True)
         desired_lens = t * total_lens[:, None]
-        # Which segment should the new point be interpolated on
         i = np.argmax(desired_lens[:, None] < cum_segment_lens[..., None], axis=1)
-        # At what percentage of the segment does this new point actually appear
-        pct = (desired_lens - np.take_along_axis(cum_segment_lens, i - 1, axis=-1)) / (
-                np.take_along_axis(segment_lens, i - 1, axis=-1) + 1e-8
+        pct = (desired_lens - np.take_along_axis(np.array(cum_segment_lens), i - 1, axis=-1)) / (
+                np.take_along_axis(np.array(segment_lens), i - 1, axis=-1) + 1e-8
         )
 
         row_indices = np.arange(edges.shape[0])[:, None]

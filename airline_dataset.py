@@ -63,11 +63,12 @@ class AirlineDataset:
         return edges
 
     def transform_edges(self) -> np.ndarray:
+        tmp_nodes = [node for node in nx.read_graphml(self.dataset_path).nodes(data=True)]
         transformed_edges = np.zeros((self.n_edges, 2, 2))
 
         for idx, (from_edge, to_edge) in enumerate(self.edges):
-            from_coords = np.array([self.nodes[from_edge][1]["x"], self.nodes[from_edge][1]["y"]])
-            to_coords = np.array([self.nodes[to_edge][1]["x"], self.nodes[to_edge][1]["y"]])
+            from_coords = np.array([tmp_nodes[from_edge][1]["x"], tmp_nodes[from_edge][1]["y"]])
+            to_coords = np.array([tmp_nodes[to_edge][1]["x"], tmp_nodes[to_edge][1]["y"]])
             transformed_edges[idx, 0, :] = from_coords
             transformed_edges[idx, 1, :] = to_coords
 

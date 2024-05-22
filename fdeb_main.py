@@ -20,7 +20,7 @@ def example_from_repo():
     # Extract edges from embedding and adjacency matrix
     edges = np.stack([x[adj.row], x[adj.col]], axis=1)
     # Compute FDEB
-    edges_fdeb = fdeb(AirlineDataset().transform_edges())
+    edges_fdeb = fdeb(AirlineDataset("./data/airlines.graphml").transform_edges())
     #print(x)
     #print(adj)
     #print(edges_fdeb)
@@ -28,10 +28,10 @@ def example_from_repo():
     print("\n")
     print("My example")
 
-    airline_dataset = AirlineDataset()
+    airline_dataset = AirlineDataset("./data/airlines.graphml")
     #print(airline_dataset.edges)
     #print(airline_dataset.nodes)
-    edges_fdeb_my = MyFdeb().my_fdeb(airline_dataset)
+    edges_fdeb_my = MyFdeb().my_fdeb(airline_dataset.transform_edges())
     #print(edges_fdeb_my)
 
     #assert np.array_equal(edges_fdeb_my, edges_fdeb) == True
