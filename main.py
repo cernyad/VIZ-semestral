@@ -18,7 +18,7 @@ from PySide6.QtWidgets import QApplication, QMainWindow, QGraphicsScene, QGraphi
     QGraphicsLineItem, QWidget, QVBoxLayout, QListWidget, QListWidgetItem, QHBoxLayout, QGraphicsEllipseItem
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from PySide6.QtGui import QBrush, QPen, QTransform, QPainter, QSurfaceFormat, QColor
-from my_fdeb import MyFdeb
+from fdeb import Fdeb
 
 
 dataset = AirlineDataset("./data/airlines.graphml")

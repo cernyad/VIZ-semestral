@@ -75,6 +75,7 @@ class AirlineDataset:
 
         return transformed_edges
 
+
 if __name__ == '__main__':
     dataset = AirlineDataset("data/airlines.graphml")
     print(dataset.nodes[:10])

@@ -4,7 +4,7 @@ import math
 from tqdm import tqdm
 
 
-class MyFdeb:
+class Fdeb:
     def __init__(self):
         self.K = 0.1
         self.n_iter = 30
