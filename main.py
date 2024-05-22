@@ -13,19 +13,20 @@ import numpy as np
 from airline_dataset import AirlineDataset
 import sys, random, math
 from PySide6.QtCore import Qt, QSize
-from PySide6.QtSvgWidgets import QGraphicsSvgItem
 from PySide6.QtWidgets import QApplication, QMainWindow, QGraphicsScene, QGraphicsView, QSizePolicy, QGraphicsTextItem, \
     QGraphicsLineItem, QWidget, QVBoxLayout, QListWidget, QListWidgetItem, QHBoxLayout, QGraphicsEllipseItem
 from PySide6.QtOpenGLWidgets import QOpenGLWidget
 from PySide6.QtGui import QBrush, QPen, QTransform, QPainter, QSurfaceFormat, QColor
 from fdeb import Fdeb
 
-
 dataset = AirlineDataset("./data/airlines.graphml")
+
+
 class VisGraphicsScene(QGraphicsScene):
     def __init__(self):
         super(VisGraphicsScene, self).__init__()
         self.city_items = {}
+        self.edge_lines = {}
         self.selection = None
         self.wasDragg = False
 
@@ -46,11 +47,26 @@ class VisGraphicsScene(QGraphicsScene):
         if (self.selection):
             self.selection.setPen(self.pen)
             self.selection.setBrush(self.brush)
+
+            city_idx = self.selection.data(1)
+            edge_indicies = self.city_items[city_idx]["edges"]
+
+            for idx in edge_indicies:
+                for line in self.edge_lines[idx]:
+                    line.setPen(self.line_pen)
+
         item = self.itemAt(event.scenePos(), QTransform())
         if (item):
-            item.setPen(self.selected_pen)
-            item.setBrush(self.selected_brush)
+            city_idx = item.data(1)
+            item.setPen(self.selected_pen)  # Highlight selected city
+            item.setBrush(self.selected_brush)  # Highlight selected city
             self.selection = item
+
+            edge_indicies = self.city_items[city_idx]["edges"]
+
+            for idx in edge_indicies:
+                for line in self.edge_lines[idx]:
+                    line.setPen(self.selected_pen)
 
 
 class VisGraphicsView(QGraphicsView):
@@ -99,9 +115,6 @@ class MainWindow(QMainWindow):
         self.setMinimumSize(1600, 900)
         self.show()
 
-
-
-
     def createWidgets(self):
         # Create main widget to hold layout
         mainWidget = QWidget()
@@ -126,7 +139,6 @@ class MainWindow(QMainWindow):
         self.view.scale(0.4, 0.4)
         self.view.setBackgroundBrush(QBrush(QColor(0, 0, 128, 255)))
         layout.addWidget(self.view)
-
 
         self.cityListWidget = QListWidget()
         self.cityListWidget.itemClicked.connect(self.onCityListItemClicked)  # Connect signal to slot
@@ -162,7 +174,6 @@ class MainWindow(QMainWindow):
                 for line in self.edge_lines[idx]:
                     line.setPen(self.scene.selected_pen)
 
-
     def get_airport_size(self, airport):
         MAX_SIZE = 100
         size = 10
@@ -172,10 +183,6 @@ class MainWindow(QMainWindow):
                 size *= 1.01
 
         return min(size, MAX_SIZE)
-
-        # x axis range is ca. (60, 130)
-        # y axis range is ca. (25, 50)
-        # -> ration width:height is ca. 70 : 25
 
     def mercator_projection(self, longitude, latitude):
         x = (longitude + 180) * (self.view.width() / 360)
@@ -191,8 +198,8 @@ class MainWindow(QMainWindow):
             x1, y1 = self.airports[e[0]]["x"], self.airports[e[0]]["y"]
             x2, y2 = self.airports[e[1]]["x"], self.airports[e[1]]["y"]
 
-            print(f"edge from {self.airports[e[0]]["name"]} to {self.airports[e[1]]["name"]}")
-            print(f"x1: {x1} y1: {y1} x2: {x2} y2: {y2}")
+            # print(f"edge from {self.airports[e[0]]["name"]} to {self.airports[e[1]]["name"]}")
+            # print(f"x1: {x1} y1: {y1} x2: {x2} y2: {y2}")
 
             coords[i, 0, 0] = x1
             coords[i, 0, 1] = y1
@@ -203,8 +210,8 @@ class MainWindow(QMainWindow):
             self.airports[e[0]]["edges"].append(i)
             self.airports[e[1]]["edges"].append(i)
 
-
         return coords
+
     def generateAndMapData(self):
         self.airports.sort(key=lambda x: x['name'])
 
@@ -212,8 +219,6 @@ class MainWindow(QMainWindow):
         for city in self.airports:
             item = QListWidgetItem(city['name'])
             self.cityListWidget.addItem(item)
-
-
 
         # Define scaling factor
         scale_factor = 20  # Adjust this value as needed
@@ -235,7 +240,9 @@ class MainWindow(QMainWindow):
             ellipse = self.scene.addEllipse(x - d / 2, y - d / 2, d, d, self.scene.pen, self.scene.brush)
             ellipse.setData(0, city['name'])  # Store the city name as custom data
             ellipse.setData(1, city['index'])  # Store the city name as custom data
+
             self.scene.city_items[city['name']] = ellipse  # Store the ellipse item
+            self.scene.city_items[city['index']] = city  # Store the city item by index
 
             # Add city label
             text = QGraphicsTextItem(city['name'])
@@ -247,7 +254,7 @@ class MainWindow(QMainWindow):
         self.airports.sort(key=lambda x: x['index'])
         edge_coords = self.get_edge_coords()
 
-        overflow_const = 100 # 10 worked for 60 its, not for 100
+        overflow_const = 100  # 10 worked for 60 its, not for 100
         # PERFORM EDGE BUNDLING
         edge_coords /= overflow_const  # prevent overflow
 
@@ -262,15 +269,14 @@ class MainWindow(QMainWindow):
 
         edges_fdeb *= overflow_const
         edge_coords *= overflow_const
-        print(edge_coords)
 
         # edges_fdeb = edge_coords # switch bundled/not bundled
 
         for i in range(edges_fdeb.shape[0]):
             self.edge_lines[i] = []
-            for j in range(edges_fdeb.shape[1]-1):
+            for j in range(edges_fdeb.shape[1] - 1):
                 x1, y1 = edges_fdeb[i, j, :]
-                x2, y2 = edges_fdeb[i, j+1, :]
+                x2, y2 = edges_fdeb[i, j + 1, :]
 
                 line = QGraphicsLineItem(x1, y1, x2, y2)
                 line.setZValue(-50)  # Set a low Z-value for edges
@@ -280,16 +286,13 @@ class MainWindow(QMainWindow):
 
                 self.scene.addItem(line)
 
-
-
-
-
+        self.scene.edge_lines = self.edge_lines
 
 
 def main():
     app = QApplication(sys.argv)
     ex = MainWindow()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":
