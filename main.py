@@ -1,16 +1,18 @@
+import os
+import sys
+import math
 import numpy as np
-
-from airline_dataset import AirlineDataset
-import sys, random, math
-from PySide6.QtCore import Qt, QSize
-from PySide6.QtWidgets import QApplication, QMainWindow, QGraphicsScene, QGraphicsView, QSizePolicy, QGraphicsTextItem, \
-    QGraphicsLineItem, QWidget, QVBoxLayout, QListWidget, QListWidgetItem, QHBoxLayout, QGraphicsEllipseItem
-from PySide6.QtOpenGLWidgets import QOpenGLWidget
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QBrush, QPen, QTransform, QPainter, QSurfaceFormat, QColor
+from PySide6.QtSvg import QSvgGenerator
+from PySide6.QtWidgets import (QApplication, QMainWindow, QGraphicsScene, QGraphicsView, QVBoxLayout, QWidget,
+                               QHBoxLayout, QListWidget, QListWidgetItem, QGraphicsEllipseItem, QPushButton,
+                               QMessageBox, QGraphicsLineItem, QGraphicsTextItem, QFileDialog)
+from PySide6.QtOpenGLWidgets import QOpenGLWidget
+from airline_dataset import AirlineDataset
 from fdeb import Fdeb
 
 dataset = AirlineDataset("./data/airlines.graphml")
-
 
 class VisGraphicsScene(QGraphicsScene):
     def __init__(self):
@@ -32,9 +34,9 @@ class VisGraphicsScene(QGraphicsScene):
         self.line_pen = QPen(line_color)
 
     def mouseReleaseEvent(self, event):
-        if (self.wasDragg):
+        if self.wasDragg:
             return
-        if (self.selection):
+        if self.selection:
             self.selection.setPen(self.pen)
             self.selection.setBrush(self.brush)
 
@@ -46,7 +48,7 @@ class VisGraphicsScene(QGraphicsScene):
                     line.setPen(self.line_pen)
 
         item = self.itemAt(event.scenePos(), QTransform())
-        if (item):
+        if item:
             city_idx = item.data(1)
             item.setPen(self.selected_pen)  # Highlight selected city
             item.setBrush(self.selected_brush)  # Highlight selected city
@@ -57,7 +59,6 @@ class VisGraphicsScene(QGraphicsScene):
             for idx in edge_indicies:
                 for line in self.edge_lines[idx]:
                     line.setPen(self.selected_pen)
-
 
 class VisGraphicsView(QGraphicsView):
     def __init__(self, scene, parent):
@@ -74,7 +75,7 @@ class VisGraphicsView(QGraphicsView):
         self.setResizeAnchor(QGraphicsView.AnchorViewCenter)
 
     def wheelEvent(self, event):
-        zoom = 1 + event.angleDelta().y() * 0.001;
+        zoom = 1 + event.angleDelta().y() * 0.001
         self.scale(zoom, zoom)
 
     def mousePressEvent(self, event):
@@ -89,10 +90,9 @@ class VisGraphicsView(QGraphicsView):
         deltaX = endX - self.startX
         deltaY = endY - self.startY
         distance = math.sqrt(deltaX * deltaX + deltaY * deltaY)
-        if (distance > 5):
+        if distance > 5:
             self.myScene.wasDragg = True
         super().mouseReleaseEvent(event)
-
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -115,8 +115,8 @@ class MainWindow(QMainWindow):
         self.scene = VisGraphicsScene()
         self.brush = [QBrush(Qt.yellow), QBrush(Qt.green), QBrush(Qt.blue)]
 
-        format = QSurfaceFormat();
-        format.setSamples(4);
+        format = QSurfaceFormat()
+        format.setSamples(4)
 
         gl = QOpenGLWidget()
         gl.setFormat(format)
@@ -126,7 +126,7 @@ class MainWindow(QMainWindow):
         self.view.setViewport(gl)
         self.view.setBackgroundBrush(QColor(255, 255, 255))
         self.view.setGeometry(0, 0, 1000, 1000)
-        self.view.scale(0.4, 0.4)
+        self.view.scale(0.38, 0.38)
         self.view.setBackgroundBrush(QBrush(QColor(0, 0, 128, 255)))
         layout.addWidget(self.view)
 
@@ -134,8 +134,38 @@ class MainWindow(QMainWindow):
         self.cityListWidget.itemClicked.connect(self.onCityListItemClicked)  # Connect signal to slot
         layout.addWidget(self.cityListWidget)
 
+        # Add a button to save the visualization
+        saveButton = QPushButton("Export SVG")
+        saveButton.clicked.connect(self.saveVisualization)  # Connect signal to slot
+        layout.addWidget(saveButton)
+
+
         layout.setStretch(0, 5)  # Set stretch factor for visualization view
         layout.setStretch(1, 1)  # Set stretch factor for list widget
+
+    def saveVisualization(self):
+        # Open a file dialog to choose the filename and location
+        filename, _ = QFileDialog.getSaveFileName(self, "Save Visualization", "", "SVG Files (*.svg)")
+        if filename:
+            # Call the function to save the visualization
+            self.saveVisualizationToFile(filename)
+
+    def saveVisualizationToFile(self, filename):
+        # Check if the filename has the correct extension
+        if not filename.endswith('.svg'):
+            filename += '.svg'
+
+        # Create a QSvgGenerator object
+        svgGenerator = QSvgGenerator()
+        svgGenerator.setFileName(filename)
+        svgGenerator.setSize(self.view.size())
+        svgGenerator.setViewBox(self.view.rect())
+
+        # Create a QPainter object to draw the QGraphicsView onto the SVG generator
+        painter = QPainter()
+        painter.begin(svgGenerator)
+        self.view.render(painter)
+        painter.end()
 
     def onCityListItemClicked(self, item):
         city_name = item.text()
@@ -187,9 +217,6 @@ class MainWindow(QMainWindow):
         for i, e in enumerate(edges):
             x1, y1 = self.airports[e[0]]["x"], self.airports[e[0]]["y"]
             x2, y2 = self.airports[e[1]]["x"], self.airports[e[1]]["y"]
-
-            # print(f"edge from {self.airports[e[0]]["name"]} to {self.airports[e[1]]["name"]}")
-            # print(f"x1: {x1} y1: {y1} x2: {x2} y2: {y2}")
 
             coords[i, 0, 0] = x1
             coords[i, 0, 1] = y1
@@ -283,7 +310,6 @@ def main():
     app = QApplication(sys.argv)
     ex = MainWindow()
     sys.exit(app.exec())
-
 
 if __name__ == "__main__":
     main()
