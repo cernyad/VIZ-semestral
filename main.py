@@ -37,6 +37,9 @@ class VisGraphicsScene(QGraphicsScene):
         self.selected_pen = QPen(selected_color)
         self.selected_brush = QBrush(selected_color)
 
+        line_color = QColor(255, 0, 0, 60)
+        self.line_pen = QPen(line_color)
+
     def mouseReleaseEvent(self, event):
         if (self.wasDragg):
             return
@@ -48,9 +51,6 @@ class VisGraphicsScene(QGraphicsScene):
             item.setPen(self.selected_pen)
             item.setBrush(self.selected_brush)
             self.selection = item
-
-            if isinstance(item, QGraphicsEllipseItem): # city
-                print(f"selected: {item.data(0)}")
 
 
 class VisGraphicsView(QGraphicsView):
@@ -91,11 +91,16 @@ class VisGraphicsView(QGraphicsView):
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
-        self.setWindowTitle('VIZ Qt for Python Example')
+        self.airports = dataset.nodes
+        self.edge_lines = {}
+        self.setWindowTitle('Visualisation of U.S. air travel')
         self.createWidgets()
         self.generateAndMapData()
         self.setMinimumSize(1600, 900)
         self.show()
+
+
+
 
     def createWidgets(self):
         # Create main widget to hold layout
@@ -123,10 +128,8 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.view)
 
 
-        # Create list widget for cities
         self.cityListWidget = QListWidget()
         self.cityListWidget.itemClicked.connect(self.onCityListItemClicked)  # Connect signal to slot
-        self.cityListWidget.itemSelectionChanged.connect(self.changeItemColor)
         layout.addWidget(self.cityListWidget)
 
         layout.setStretch(0, 5)  # Set stretch factor for visualization view
@@ -137,24 +140,27 @@ class MainWindow(QMainWindow):
         if self.scene.selection:
             self.scene.selection.setPen(self.scene.pen)  # Reset previous selection
             self.scene.selection.setBrush(self.scene.brush)  # Reset previous selection
+
+            city_idx = self.scene.selection.data(1)
+            edge_indicies = self.airports[city_idx]["edges"]
+
+            for idx in edge_indicies:
+                for line in self.edge_lines[idx]:
+                    line.setPen(self.scene.line_pen)
+
         city_item = self.scene.city_items.get(city_name)
+
         if city_item:
+            city_idx = city_item.data(1)
             city_item.setPen(self.scene.selected_pen)  # Highlight selected city
             city_item.setBrush(self.scene.selected_brush)  # Highlight selected city
             self.scene.selection = city_item
 
-    def changeItemColor(self):
+            edge_indicies = self.airports[city_idx]["edges"]
 
-        for i in range(self.cityListWidget.count()):
-            item = self.cityListWidget.item(i)
-            item.setData(Qt.BackgroundRole, QBrush(QColor("white")))
-            item.setData(Qt.ForegroundRole, QBrush(QColor("black")))
-
-            # Change the color of selected items
-        selected_items = self.cityListWidget.selectedItems()
-        for item in selected_items:
-            item.setData(Qt.BackgroundRole, QBrush(QColor("blue")))  # Change background color to blue
-            item.setData(Qt.ForegroundRole, QBrush(QColor("white")))  # Change text color to white
+            for idx in edge_indicies:
+                for line in self.edge_lines[idx]:
+                    line.setPen(self.scene.selected_pen)
 
 
     def get_airport_size(self, airport):
@@ -177,15 +183,15 @@ class MainWindow(QMainWindow):
         y = (self.view.height() / 2) - (self.view.height() * y / (2 * 180))
         return x, y
 
-    def get_edge_coords(self, airports):
+    def get_edge_coords(self):
         edges = dataset.edges
 
         coords = np.zeros((len(edges), 2, 2))
         for i, e in enumerate(edges):
-            x1, y1 = airports[e[0]]["x"], airports[e[0]]["y"]
-            x2, y2 = airports[e[1]]["x"], airports[e[1]]["y"]
+            x1, y1 = self.airports[e[0]]["x"], self.airports[e[0]]["y"]
+            x2, y2 = self.airports[e[1]]["x"], self.airports[e[1]]["y"]
 
-            print(f"edge from {airports[e[0]]['name']} to {airports[e[1]]['name']}")
+            print(f"edge from {self.airports[e[0]]["name"]} to {self.airports[e[1]]["name"]}")
             print(f"x1: {x1} y1: {y1} x2: {x2} y2: {y2}")
 
             coords[i, 0, 0] = x1
@@ -193,15 +199,17 @@ class MainWindow(QMainWindow):
             coords[i, 1, 0] = x2
             coords[i, 1, 1] = y2
 
+            # this info is later used to highlight relevant edges for an airport
+            self.airports[e[0]]["edges"].append(i)
+            self.airports[e[1]]["edges"].append(i)
+
 
         return coords
     def generateAndMapData(self):
-        cities = dataset.nodes
-
-        cities.sort(key=lambda x: x['name'])
+        self.airports.sort(key=lambda x: x['name'])
 
         # Populate list widget with city names
-        for city in cities:
+        for city in self.airports:
             item = QListWidgetItem(city['name'])
             self.cityListWidget.addItem(item)
 
@@ -211,7 +219,7 @@ class MainWindow(QMainWindow):
         scale_factor = 20  # Adjust this value as needed
 
         # Map data to graphical elements
-        for city in cities:
+        for city in self.airports:
             # Convert latitude and longitude to scene coordinates
             x, y = self.mercator_projection(city['longitude'], city['latitude'])
 
@@ -226,6 +234,7 @@ class MainWindow(QMainWindow):
             d = self.get_airport_size(city)
             ellipse = self.scene.addEllipse(x - d / 2, y - d / 2, d, d, self.scene.pen, self.scene.brush)
             ellipse.setData(0, city['name'])  # Store the city name as custom data
+            ellipse.setData(1, city['index'])  # Store the city name as custom data
             self.scene.city_items[city['name']] = ellipse  # Store the ellipse item
 
             # Add city label
@@ -235,8 +244,8 @@ class MainWindow(QMainWindow):
             self.scene.addItem(text)
 
         # sort back to original order
-        cities.sort(key=lambda x: x['index'])
-        edge_coords = self.get_edge_coords(cities)
+        self.airports.sort(key=lambda x: x['index'])
+        edge_coords = self.get_edge_coords()
 
         overflow_const = 100 # 10 worked for 60 its, not for 100
         # PERFORM EDGE BUNDLING
@@ -258,13 +267,17 @@ class MainWindow(QMainWindow):
         # edges_fdeb = edge_coords # switch bundled/not bundled
 
         for i in range(edges_fdeb.shape[0]):
+            self.edge_lines[i] = []
             for j in range(edges_fdeb.shape[1]-1):
                 x1, y1 = edges_fdeb[i, j, :]
                 x2, y2 = edges_fdeb[i, j+1, :]
 
                 line = QGraphicsLineItem(x1, y1, x2, y2)
                 line.setZValue(-50)  # Set a low Z-value for edges
-                line.setPen(QPen(QColor(255, 0, 0, 60)))
+                line.setPen(self.scene.line_pen)
+
+                self.edge_lines[i].append(line)
+
                 self.scene.addItem(line)
 
 
