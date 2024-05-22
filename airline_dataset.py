@@ -29,6 +29,7 @@ class AirlineDataset:
                 raise ValueError("Invalid format for tooltip")
 
             return {
+                'edges' : [],
                 'index' : index,
                 'name': name,
                 'latitude': latitude,
