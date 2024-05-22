@@ -1,13 +1,3 @@
-# Copyright (c) 2021 Ladislav Čmolík
-#
-# Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is 
-# hereby granted.
-#
-# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE 
-# INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE 
-# FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS 
-# OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING 
-# OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 import numpy as np
 
 from airline_dataset import AirlineDataset
@@ -30,7 +20,7 @@ class VisGraphicsScene(QGraphicsScene):
         self.selection = None
         self.wasDragg = False
 
-        color = QColor(255, 255, 0, 200)  # Red color with 50% opacity
+        color = QColor(255, 255, 0, 200)  # green color with a bit of opacity
         self.pen = QPen(color)
         self.brush = QBrush(color)
 
@@ -264,7 +254,7 @@ class MainWindow(QMainWindow):
         # with open('edges_fdeb.npy', 'wb') as f:
         #     np.save(f, edges_fdeb)
 
-        with open('edges_fdeb_best.npy', 'rb') as f:
+        with open('data/edges_fdeb_best.npy', 'rb') as f:
             edges_fdeb = np.load(f)
 
         edges_fdeb *= overflow_const
