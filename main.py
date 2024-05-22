@@ -265,6 +265,7 @@ class MainWindow(QMainWindow):
             text = QGraphicsTextItem(city['name'])
             text.setDefaultTextColor(Qt.white)
             text.setPos(x + 10, y - 10)  # Adjust position for label
+            text.setScale(1 + (d-10) / 20)
             self.scene.addItem(text)
 
         # sort back to original order
