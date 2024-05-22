@@ -20,7 +20,7 @@ class VisGraphicsScene(QGraphicsScene):
         self.selection = None
         self.wasDragg = False
 
-        color = QColor(255, 255, 0, 200)  # green color with a bit of opacity
+        color = QColor(255, 255, 0, 160)  # yellow color with a bit of opacity
         self.pen = QPen(color)
         self.brush = QBrush(color)
 
@@ -236,7 +236,7 @@ class MainWindow(QMainWindow):
 
             # Add city label
             text = QGraphicsTextItem(city['name'])
-            text.setDefaultTextColor(Qt.black)
+            text.setDefaultTextColor(Qt.white)
             text.setPos(x + 10, y - 10)  # Adjust position for label
             self.scene.addItem(text)
 
