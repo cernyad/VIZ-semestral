@@ -26,6 +26,7 @@ class VisGraphicsScene(QGraphicsScene):
     def __init__(self):
         super(VisGraphicsScene, self).__init__()
         self.city_items = {}
+        self.edge_lines = {}
         self.selection = None
         self.wasDragg = False
 
@@ -46,11 +47,26 @@ class VisGraphicsScene(QGraphicsScene):
         if (self.selection):
             self.selection.setPen(self.pen)
             self.selection.setBrush(self.brush)
+
+            city_idx = self.selection.data(1)
+            edge_indicies = self.city_items[city_idx]["edges"]
+
+            for idx in edge_indicies:
+                for line in self.edge_lines[idx]:
+                    line.setPen(self.line_pen)
+
         item = self.itemAt(event.scenePos(), QTransform())
         if (item):
-            item.setPen(self.selected_pen)
-            item.setBrush(self.selected_brush)
+            city_idx = item.data(1)
+            item.setPen(self.selected_pen)  # Highlight selected city
+            item.setBrush(self.selected_brush)  # Highlight selected city
             self.selection = item
+
+            edge_indicies = self.city_items[city_idx]["edges"]
+
+            for idx in edge_indicies:
+                for line in self.edge_lines[idx]:
+                    line.setPen(self.selected_pen)
 
 
 class VisGraphicsView(QGraphicsView):
@@ -191,8 +207,8 @@ class MainWindow(QMainWindow):
             x1, y1 = self.airports[e[0]]["x"], self.airports[e[0]]["y"]
             x2, y2 = self.airports[e[1]]["x"], self.airports[e[1]]["y"]
 
-            print(f"edge from {self.airports[e[0]]["name"]} to {self.airports[e[1]]["name"]}")
-            print(f"x1: {x1} y1: {y1} x2: {x2} y2: {y2}")
+            # print(f"edge from {self.airports[e[0]]["name"]} to {self.airports[e[1]]["name"]}")
+            # print(f"x1: {x1} y1: {y1} x2: {x2} y2: {y2}")
 
             coords[i, 0, 0] = x1
             coords[i, 0, 1] = y1
@@ -212,8 +228,6 @@ class MainWindow(QMainWindow):
         for city in self.airports:
             item = QListWidgetItem(city['name'])
             self.cityListWidget.addItem(item)
-
-
 
         # Define scaling factor
         scale_factor = 20  # Adjust this value as needed
@@ -235,7 +249,9 @@ class MainWindow(QMainWindow):
             ellipse = self.scene.addEllipse(x - d / 2, y - d / 2, d, d, self.scene.pen, self.scene.brush)
             ellipse.setData(0, city['name'])  # Store the city name as custom data
             ellipse.setData(1, city['index'])  # Store the city name as custom data
+
             self.scene.city_items[city['name']] = ellipse  # Store the ellipse item
+            self.scene.city_items[city['index']] = city  # Store the city item by index
 
             # Add city label
             text = QGraphicsTextItem(city['name'])
@@ -262,7 +278,6 @@ class MainWindow(QMainWindow):
 
         edges_fdeb *= overflow_const
         edge_coords *= overflow_const
-        print(edge_coords)
 
         # edges_fdeb = edge_coords # switch bundled/not bundled
 
@@ -280,16 +295,12 @@ class MainWindow(QMainWindow):
 
                 self.scene.addItem(line)
 
-
-
-
-
-
+        self.scene.edge_lines = self.edge_lines
 
 def main():
     app = QApplication(sys.argv)
     ex = MainWindow()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())
 
 
 if __name__ == "__main__":
