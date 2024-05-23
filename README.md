@@ -12,8 +12,9 @@ To compile the code and display the visualization, run the following command:
 ```shell
 make build
 ```
+## Screenshots
 
-## Initial State (only applying Mercator projection)
+### Initial State (only applying Mercator projection)
 ![](screenshots/initial_state.png) 
-## Our Visualisation 
+### Our Visualisation 
 ![](screenshots/bundled_variable_nodes.png) 
